@@ -1,8 +1,9 @@
 # DeerFlow - Unified Development Environment
 
-.PHONY: help config config-upgrade check install dev dev-daemon start stop up down clean docker-init docker-start docker-stop docker-logs docker-logs-frontend docker-logs-gateway
+.PHONY: help config config-upgrade check install dev dev-daemon start stop up down clean docker-init docker-start docker-stop docker-logs docker-logs-frontend docker-logs-gateway singularity-init singularity-start singularity-stop singularity-logs
 
-PYTHON ?= python
+# Prefer backend venv after `make install` / `uv sync`; fall back for bootstrap.
+PYTHON ?= $(shell if test -x backend/.venv/bin/python; then echo backend/.venv/bin/python; elif command -v python3 >/dev/null 2>&1; then echo python3; else echo python; fi)
 BASH ?= bash
 
 # Detect OS for Windows compatibility
@@ -34,6 +35,12 @@ help:
 	@echo "  make docker-logs     - View Docker development logs"
 	@echo "  make docker-logs-frontend - View Docker frontend logs"
 	@echo "  make docker-logs-gateway - View Docker gateway logs"
+	@echo ""
+	@echo "Singularity / Apptainer (no Docker daemon; uses singularity-compose):"
+	@echo "  make singularity-init   - Bootstrap singularity-compose venv + build/pull SIFs"
+	@echo "  make singularity-start  - Start backend+frontend+nginx instances (localhost:2026)"
+	@echo "  make singularity-stop   - Stop instances (singularity-compose down)"
+	@echo "  make singularity-logs   - Tail instance logs (see scripts/singularity.sh logs --help)"
 
 config:
 	@$(PYTHON) ./scripts/configure.py
@@ -165,6 +172,24 @@ docker-logs-frontend:
 	@./scripts/docker.sh logs --frontend
 docker-logs-gateway:
 	@./scripts/docker.sh logs --gateway
+
+# ==========================================
+# Singularity / Apptainer (singularity-compose)
+# Optional: export DEER_FLOW_SINGULARITY_COMPOSE to a singularity-compose binary
+# (e.g. from ~/coder/potpie/singularity/singularity-compose/.venv/bin/).
+# ==========================================
+
+singularity-init:
+	@./scripts/singularity.sh init
+
+singularity-start:
+	@./scripts/singularity.sh start
+
+singularity-stop:
+	@./scripts/singularity.sh stop
+
+singularity-logs:
+	@./scripts/singularity.sh logs
 
 # ==========================================
 # Production Docker Commands

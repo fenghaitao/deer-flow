@@ -46,6 +46,7 @@ log/
 
 # pnpm
 .pnpm-store
+frontend/.deer-flow-tools/
 sandbox_image_cache.tar
 
 # ignore the legacy `web` folder
@@ -54,3 +55,14 @@ web/
 # Deployment artifacts
 backend/Dockerfile.langgraph
 config.yaml.bak
+
+# Singularity / singularity-compose (see singularity/singularity-compose.yml)
+singularity/.venv/
+singularity/.runtime-env.sh
+singularity/cache/
+singularity/etc.hosts
+singularity/resolv.conf
+singularity/deerflow-backend/
+singularity/deerflow-frontend/
+singularity/deerflow-nginx/
+singularity/build/backend/*.sif

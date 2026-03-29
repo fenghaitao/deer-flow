@@ -1,0 +1,78 @@
+# DeerFlow dev stack via singularity-compose (Apptainer/Singularity).
+# Run from repo root: make singularity-init && make singularity-start
+#
+# Requires: local sandbox in config.yaml (no Docker socket; AIO/provisioner modes
+# need extra setup). Pattern follows potpie/singularity (singularity-compose).
+
+version: "2.0"
+instances:
+  # Pulled image + run-backend.sh (uv/node cached under ./cache/backend-runtime).
+  # Use singularity/build/backend/Singularity + fakeroot/sudo only if you need a single baked SIF.
+  deerflow-backend:
+    image: docker://docker.io/library/python:3.12-bookworm
+    network:
+      enable: false
+    volumes:
+      - ../backend:/app/backend
+      - ./scripts/run-backend.sh:/opt/deer-flow/run-backend.sh
+      - ./cache/backend-runtime:/opt/deer-flow/runtime
+      - ~/.local/bin:/opt/host-user-bin
+      # Mount full Node tree (not just bin) — pnpm is a symlink into ../lib/node_modules.
+      - ~/.nvm/versions/node/v24.3.0:/opt/host-nvm-node
+      - ../config.yaml:/app/config.yaml
+      - ../extensions_config.json:/app/extensions_config.json
+      - ../skills:/app/skills
+      - ../logs:/app/logs
+      - ../.env:/app/.env
+      # Host /tmp is large; in-instance /tmp tmpfs is tiny — uv needs space for wheels.
+      - /tmp/deerflow-uv-cache:/tmp/deerflow-uv-cache
+    start:
+      options:
+        - containall
+    run:
+      background: true
+      args: /bin/bash /opt/deer-flow/run-backend.sh
+
+  deerflow-frontend:
+    image: docker://docker.io/library/node:22-bookworm
+    network:
+      enable: false
+    depends_on:
+      - deerflow-backend
+    volumes:
+      - ../frontend:/app/frontend
+      - ./scripts/run-frontend.sh:/opt/deer-flow/run-frontend.sh
+      - ../logs:/app/logs
+      - ../frontend/.env:/app/frontend/.env
+      - /tmp/deerflow-corepack:/tmp/deerflow-corepack
+      - /tmp/deerflow-npm-cache:/tmp/deerflow-npm-cache
+      - ~/.local/bin:/opt/host-user-bin
+      # Mount full Node tree (not just bin) — pnpm is a symlink into ../lib/node_modules.
+      - ~/.nvm/versions/node/v24.3.0:/opt/host-nvm-node
+    start:
+      options:
+        - containall
+    run:
+      background: true
+      args: /bin/bash /opt/deer-flow/run-frontend.sh
+
+  deerflow-nginx:
+    image: docker://docker.io/library/nginx:alpine
+    network:
+      enable: false
+    depends_on:
+      - deerflow-backend
+      - deerflow-frontend
+    volumes:
+      - ./nginx/deerflow.local.conf:/etc/nginx/nginx.conf
+      - ./cache/nginx-cache:/var/cache/nginx
+      - ./cache/nginx-log:/var/log/nginx
+    start:
+      options:
+        - containall
+    run:
+      background: true
+      args:
+        - nginx
+        - -g
+        - "daemon off;"
