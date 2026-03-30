@@ -91,7 +91,7 @@ def main() -> int:
         failed = True
 
     print()
-    print("Checking nginx...")
+    print("Checking nginx (or a stack that provides it)...")
     if shutil.which("nginx"):
         nginx_version_text = run_command(["nginx", "-v"])
         if nginx_version_text and "/" in nginx_version_text:
@@ -99,12 +99,26 @@ def main() -> int:
             print(f"  ✓ nginx {nginx_version}")
         else:
             print("  ✓ nginx (version unknown)")
+    elif (sbin := (shutil.which("singularity") or shutil.which("apptainer"))):
+        sver = run_command([sbin, "--version"])
+        line = (sver.splitlines()[0] if sver else sbin)[:100]
+        print(f"  ✓ {line}")
+        print(
+            "    Host nginx not required: `make singularity-start` runs nginx in the deerflow-nginx instance."
+        )
+    elif shutil.which("docker"):
+        dver = run_command(["docker", "--version"])
+        line = dver or "docker"
+        print(f"  ✓ {line}")
+        print(
+            "    Host nginx not required: `make docker-start` runs nginx in the compose stack."
+        )
     else:
-        print("  ✗ nginx not found")
-        print("    macOS:   brew install nginx")
-        print("    Ubuntu:  sudo apt install nginx")
-        print("    Windows: use WSL for local mode or use Docker mode")
-        print("    Or visit: https://nginx.org/en/download.html")
+        print("  ✗ nginx not found, and neither Singularity/Apptainer nor Docker is on PATH")
+        print("    Local dev: install nginx — macOS: brew install nginx; Ubuntu: sudo apt install nginx")
+        print("    Or use Singularity: install Apptainer/Singularity, then make singularity-init && make singularity-start")
+        print("    Or use Docker: install Docker, then make docker-init && make docker-start")
+        print("    nginx download: https://nginx.org/en/download.html")
         failed = True
 
     print()
@@ -116,8 +130,9 @@ def main() -> int:
         print("You can now run:")
         print("  make install  - Install project dependencies")
         print("  make config   - Generate local config files")
-        print("  make dev      - Start development server")
-        print("  make start    - Start production server")
+        print("  make dev      - Start development server (host nginx + processes)")
+        print("  make start    - Start production server (host nginx + processes)")
+        print("  make singularity-init / singularity-start  - Singularity stack (nginx in instance)")
         return 0
 
     print("==========================================")
